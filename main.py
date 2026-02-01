@@ -108,8 +108,8 @@ class Piece(ABC, pygame.sprite.Sprite):
             return False
 
         if killed: killed.kill()
-        board[self.position[0]][self.position[1]] = None
-        board[self.position[0]][self.position[1]] = self
+        board[tmp[0]][tmp[1]] = None
+        board[coordinates[0]][coordinates[1]] = self
         self.real_position = self.rect.center
         self.rect.center = CoordinatesHelper.board_to_real(coordinates)
 
