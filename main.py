@@ -245,7 +245,7 @@ class King(Piece):
         
         # Castling
         is_castling = self.first_move == None and abs(col_diff) == 2 \
-                      and ChessHelper.check_way((0, col_diff // 2), 2 + (col_diff < 0)) \
+                      and ChessHelper.check_way(self.position, (0, col_diff // 2), 2 + (col_diff < 0)) \
                       and isinstance(possible_rook := board[self.position[0]][0 if col_diff < 0 else 7], Rook) \
                       and possible_rook.first_move == None
         
