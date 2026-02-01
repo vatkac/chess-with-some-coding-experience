@@ -1,596 +1,398 @@
-import turtle
-turtle.tracer(0,0)
-import time
-
-s = turtle.Screen()
-s.title('chess')
-s.register_shape('king',  ((-5,-8),(5,-8),(5,-3),(4,-2),(4,0),(2,1),(2,6),(4,6),(4,7),(2,7),(2,9),(-2,9),(-2,7),(-4,7),(-4,6),(-2,6),(-2,1),(-4,0),(-4,-2),(-5,-3),(-5,-8)))
-s.register_shape('queen', ((-5,-8),(5,-8),(5,-3),(4,-2),(4,0),(2,1),(2,5),(3,6),(4,5),(5,6),(5,7),(3,8),(1,7),(0,8),(-1,7),(-3,8),(-5,7),(-5,6),(-4,5),(-3,6),(-2,5),(-2,1),(-4,0),(-4,-2),(-5,-3),(-5,-8)))
-s.register_shape('bishop',((0,7),(1,6),(2,5),(1,4),(2,3),(1,2),(3,1),(4,0),(3,-1),(3,-3),(4,-4),(4,-8),(-4,-8),(-4,-4),(-3,-3),(-3,-1),(-4,0),(-3,1),(-1,2),(-2,3),(-1,4),(-2,5),(-1,6),(0,7)))
-s.register_shape('knight',((-5,-8),(5,-8),(5,-3),(1,-3),(4,1),(1,5),(-2,4),(-2,0),(-5,0),(-5,-8)))
-s.register_shape('rook', ((-4,4),(4,4),(4,2),(3,1),(3,-2),(5,-6),(5,-8),(-5,-8),(-5,-6),(-3,-2),(-3,1),(-4,2),(-4,4)))
-s.register_shape('pawn',((0,6),(1,6),(2,5),(2,4),(2,2),(1,1),(2,0),(2,-2),(3,-3),(4,-6),(3,-7),(0,-7),(-3,-7),(-4,-6),(-3,-3),(-2,-2),(-2,0),(-1,1),(-2,2),(-2,4),(-2,5),(-1,6),(0,6)))
+from enum import Enum
+from abc import ABC, abstractmethod
+import pygame
+import sys
+from tkinter import Tk
+from tkinter import messagebox
 
 
-backgroundColor = '#404040'
-squareColor1 = '#18242b'
-squareColor2 = '#84c9FB'
-loopCount = 0
-selectedPiece = None
-selectedSquare = None
-activeTeam = 'white'
-capturedPiece = None
-turtle.bgcolor(backgroundColor)
+class Color(Enum):
+    WHITE = 0
+    BLACK = 1
 
-notation = { ##CHESS NOTATION COORDINATE DICTIONARY
-    'a1':[-295, -260],'a2':[-295, -180],'a3':[-295, -100],'a4':[-295, -20],'a4':[-295, -20],'a5':[-295, 60],'a6':[-295, 140],'a7':[-295, 220],'a8':[-295, 300],
-    'b1':[-215, -260],'b2':[-215, -180],'b3':[-215, -100],'b4':[-215, -20],'b4':[-215, -20],'b5':[-215, 60],'b6':[-215, 140],'b7':[-215, 220],'b8':[-215, 300],
-    'c1':[-135, -260],'c2':[-135, -180],'c3':[-135, -100],'c4':[-135, -20],'c4':[-135, -20],'c5':[-135, 60],'c6':[-135, 140],'c7':[-135, 220],'c8':[-135, 300],
-    'd1':[-55, -260],'d2':[-55, -180],'d3':[-55, -100],'d4':[-55, -20],'d4':[-55, -20],'d5':[-55, 60],'d6':[-55, 140],'d7':[-55, 220],'d8':[-55, 300],
-    'e1':[25, -260],'e2':[25, -180],'e3':[25, -100],'e4':[25, -20],'e4':[25, -20],'e5':[25, 60],'e6':[25, 140],'e7':[25, 220],'e8':[25, 300],
-    'f1':[105, -260],'f2':[105, -180],'f3':[105, -100],'f4':[105, -20],'f4':[105, -20],'f5':[105, 60],'f6':[105, 140],'f7':[105, 220],'f8':[105, 300],
-    'g1':[185, -260],'g2':[185, -180],'g3':[185, -100],'g4':[185, -20],'g4':[185, -20],'g5':[185, 60],'g6':[185, 140],'g7':[185, 220],'g8':[185, 300],
-    'h1':[265, -260],'h2':[265, -180],'h3':[265, -100],'h4':[265, -20],'h4':[265, -20],'h5':[265, 60],'h6':[265, 140],'h7':[265, 220],'h8':[265, 300],
-    }
+# Constants:
+WINDOW_SIDE = 600
+COLORS = [(184, 134, 99), (133, 87, 54)]
+SQUARE_SIDE = WINDOW_SIDE // 8
+PIECE_SIZE = SQUARE_SIDE * 0.9
 
-enPassantDict = notation.copy()
-for e in enPassantDict:
-    enPassantDict[e] = False
+board = [[None for _ in range(8)] for _ in range(8)]
+move = 1
+flipped = False
 
-piecePositions = { ##PIECE POSTIONS
-    'a1':"wr1",'a2':"wp1",'a3':"empty",'a4':"empty",'a4':"empty",'a5':"empty",'a6':"empty",'a7':"bp1",'a8':"br1",
-    'b1':"wk1",'b2':"wp2",'b3':"empty",'b4':"empty",'b4':"empty",'b5':"empty",'b6':"empty",'b7':"bp2",'b8':"bk1",
-    'c1':"wb1",'c2':"wp3",'c3':"empty",'c4':"empty",'c4':"empty",'c5':"empty",'c6':"empty",'c7':"bp3",'c8':"bb1",
-    'd1':"wq",'d2':"wp4",'d3':"empty",'d4':"empty",'d4':"empty",'d5':"empty",'d6':"empty",'d7':"bp4",'d8':"bq",
-    'e1':"wk",'e2':"wp5",'e3':"empty",'e4':"empty",'e4':"empty",'e5':"empty",'e6':"empty",'e7':"bp5",'e8':"bk",
-    'f1':"wb2",'f2':"wp6",'f3':"empty",'f4':"empty",'f4':"empty",'f5':"empty",'f6':"empty",'f7':"bp6",'f8':"bb2",
-    'g1':"wk2",'g2':"wp7",'g3':"empty",'g4':"empty",'g4':"empty",'g5':"empty",'g6':"empty",'g7':"bp7",'g8':"bk2",
-    'h1':"wr2",'h2':"wp8",'h3':"empty",'h4':"empty",'h4':"empty",'h5':"empty",'h6':"empty",'h7':"bp8",'h8':"br2"
-    }
+class InvalidNotationError(Exception): 
+    def __init__(self, notation: str):
+        super().__init__(f"Notation {notation} is invalid. Check it and try again.")
 
-pieces = {  ##PIECES
-    'wp1':['pawn','a2','white',False, False,{}], 'wp2':['pawn','b2','white',False, False,{}], 'wp3':['pawn','c2','white',False, False,{}], 'wp4':['pawn','d2','white',False,False,{}], 'wp5':['pawn','e2','white',False,False,{}], 'wp6':['pawn','f2','white',False,False,{}], 'wp7':['pawn','g2','white',False,False,{}], 'wp8':['pawn','h2','white',False,False,{}],
-    'wk1':['knight', 'b1', 'white', False, False,{}], 'wk2':['knight','g1','white', False, False,{}],
-    'wb1':['bishop', 'c1', 'white', False, False,{}], 'wb2':['bishop', 'f1', 'white', False, False,{}],
-    'wr1':['rook', 'a1', 'white', False, False,{}],'wr2':['rook', 'h1', 'white', False, False,{}],
-    'wq':['queen', 'd1', 'white', False, False,{}],
-    'wk':['king', 'e1', 'white', False, False,{}],
-    'bp1':['pawn','a7','black',False, False,{}], 'bp2':['pawn','b7','black',False, False,{}], 'bp3':['pawn','c7','black',False, False,{}], 'bp4':['pawn','d7','black',False,False,{}], 'bp5':['pawn','e7','black',False,False,{}], 'bp6':['pawn','f7','black',False,False,{}], 'bp7':['pawn','g7','black',False,False,{}], 'bp8':['pawn','h7','black',False,False,{}],
-    'bk1':['knight', 'b8', 'black', False, False,{}], 'bk2':['knight','g8','black', False, False,{}],
-    'bb1':['bishop', 'c8', 'black', False, False,{}], 'bb2':['bishop', 'f8', 'black', False, False,{}],
-    'br1':['rook', 'a8', 'black', False, False,{}],'br2':['rook', 'h8', 'black', False, False,{}],
-    'bq':['queen', 'd8', 'black', False, False,{}],
-    'bk':['king', 'e8', 'black', False, False,{}],
-}
-
-for n in notation: ##CREATE BOARD SQUARE TURTLES
-    loopCount = loopCount + 1
-    if loopCount % 9 == 0:
-        loopCount = loopCount + 1
-    if loopCount % 2:
-        coords = str(notation[n])
-        coords = coords[1:-1]
-        exec(str(n)+'= turtle.Turtle()')
-        exec(str(n) + '.penup()')
-        exec(str(n) + '.shape' + '("' + 'square' + '")')
-        exec(str(n) + '.turtlesize' + '(4)')
-        exec(str(n)+'.goto'+'(' +coords + ')')
-        exec(str(n)+'.fillcolor('+'"'+squareColor1+'")')
-        exec(str(n) + '.onclick(lambda x, y: selectSquare(x, y, "' + str(n) + '"))')
-    else:
-        coords = str(notation[n])
-        coords = coords[1:-1]
-        exec(str(n)+'= turtle.Turtle()')
-        exec(str(n) + '.penup()')
-        exec(str(n) + '.shape' + '("' + 'square' + '")')
-        exec(str(n) + '.turtlesize' + '(4)')
-        exec(str(n)+'.goto'+'(' +coords + ')')
-        exec(str(n)+'.fillcolor('+'"'+squareColor2+'")')
-        exec(str(n) + '.onclick(lambda x, y: selectSquare(x, y, "' + str(n) + '"))')
-
-for p in pieces: ## CREATE PIECES FROM PIECES DICTIONARY
-    coords = pieces[p][1]
-    exec(str(p)+'= turtle.Turtle()')
-    exec(str(p) + '.penup()')
-    exec(str(p)+'.color("white")') if pieces[p][2] == 'black' else exec(str(p)+'.color("black")')
-    exec(str(p)+'.fillcolor('+'"'+str(pieces[p][2])+'")')
-    exec(str(p)+'.goto'+'(' + str(notation[str(coords)]) + ')')
-    exec(str(p) + '.onclick(lambda x, y: selectPiece(x, y, "' + str(p) + '"))')
-    if pieces[p][0] == 'pawn':
-        exec(str(p) + '.shape' + '("' + 'turtle' + '")')
-        exec(str(p) + '.turtlesize' + '(2)')
-        exec(str(p) + '.left(90)')
-
-    if pieces[p][0] == 'knight':
-        exec(str(p) + '.shape' + '("' + 'knight' + '")')
-        exec(str(p) + '.turtlesize' + '(4)')
-        exec(str(p) + '.left(90)')
-
-    if pieces[p][0] == 'bishop':
-        exec(str(p) + '.shape' + '("' + 'bishop' + '")')
-        exec(str(p) + '.turtlesize' + '(4)')
-        exec(str(p) + '.left(90)')
+class CoordinatesHelper:
+    @staticmethod
+    def is_valid_notation(notation: str, raise_error=False) -> bool:
+        is_valid = len(notation) == 2 \
+                   and notation[1].isdigit() \
+                   and int(notation[1]) <= 8 \
+                   and notation[0] in "abcdefgh"
+        if not is_valid and raise_error: raise InvalidNotationError(notation)
+        return is_valid
     
-    if pieces[p][0] == 'rook':
-        exec(str(p) + '.shape' + '("' + 'rook' + '")')
-        exec(str(p) + '.turtlesize' + '(4)')
-        exec(str(p) + '.left(90)')
+    @staticmethod
+    def notation_to_board(notation: str):
+        CoordinatesHelper.is_valid_notation(notation, raise_error=True)
 
-    if pieces[p][0] == 'queen':
-        exec(str(p) + '.shape' + '("' + 'queen' + '")')
-        exec(str(p) + '.turtlesize' + '(4)')
-        exec(str(p) + '.left(90)')
+        row: int = 8 - int(notation[1])
+        column: int = "abcdefgh".index(notation[0])
 
-    if pieces[p][0] == 'king':
-        exec(str(p) + '.shape' + '("' + 'king' + '")')
-        exec(str(p) + '.turtlesize' + '(4)')
-        exec(str(p) + '.left(90)')
-
-##BOARD FLIP
-
-def flip():
-    turtle.tracer(0,0)
-    for n in notation:
-        x = notation[n][0]
-        y = notation[n][1]
-        notation[n][0] = (x * -1) - 30
-        notation[n][1] = (y * -1) + 40
-        coords = str(notation[n])
-        exec(str(n)+'.goto'+'(' +coords + ')')
-
-    for p in pieces:
-        coords = str(notation[(pieces[p][1])])
-        exec(str(p)+'.goto'+'(' +coords + ')')
-    turtle.tracer(1,0)
-    global activeTeam
-    activeTeam = 'black' if activeTeam =='white' else 'white'
+        return row, column
     
+    @staticmethod
+    def board_to_notation(coordinates: tuple[int, int]):
+        row: int = str(8 - coordinates[0])
+        column: int = "abcdefgh"[coordinates[1]]
 
-## GAMEPLAY AND MOVEMENT
-
-def squareIsAttacked(defendingTeam, square): ##CHECK IF SQUARE IS ATTACKED
-    attackerTeam = 'black' if defendingTeam == 'white' else 'white'
-
-    prevTeam = globals()['activeTeam']
-    prevSelected=globals()['selectedPiece']
-
-    attacked = False
-    globals()['activeTeam'] = attackerTeam
-
-    for p in list(pieces.keys()):
-        value = pieces[p]
-        if value[2] == attackerTeam:
-            globals()['selectedPiece'] = p
-            if checkSquare(0, 0, square) == True:
-                attacked = True
-                break
-
-    globals()['activeTeam'] = prevTeam
-    globals()['selectedPiece'] = prevSelected
-    return attacked
-
-def kingCheckCheck(targetSquare):
-    global selectedPiece
-
-    startSquare = pieces[selectedPiece][1]
-    capturedID = piecePositions[targetSquare]
-    capturedData = pieces[capturedID].copy() if capturedID != 'empty' else None
-
-    if capturedID != 'empty':
-        del pieces[capturedID]
-
-    piecePositions[startSquare] = 'empty'
-    piecePositions[targetSquare] = selectedPiece
-    pieces[selectedPiece][1] = targetSquare
-
-    inCheck = squareIsAttacked(activeTeam, targetSquare)
-
-    pieces[selectedPiece][1] = startSquare
-    piecePositions[startSquare] = selectedPiece
-    piecePositions[targetSquare] = capturedID
-
-    if capturedID != 'empty':
-        pieces[capturedID] = capturedData
-
-    return inCheck
+        return column + row
     
-turtle.tracer(1,0)
+    @staticmethod
+    def board_to_real(board_coordinates: tuple[int, int]) -> tuple[int, int]:
+        x = board_coordinates[1] * SQUARE_SIDE + SQUARE_SIDE // 2
+        y = board_coordinates[0] * SQUARE_SIDE + SQUARE_SIDE // 2
 
-def selectPiece(x,y, piece): ##SELECTED PIECE LOGIC
-    global selectedPiece
+        return x, y
     
-    if selectedPiece != None and activeTeam == 'white':
-        exec(selectedPiece + '.fillcolor("' + 'white' +'")')
+    @staticmethod
+    def real_to_board(real_coordinates: tuple[int, int]) -> tuple[int, int]:
+        x = real_coordinates[1] // SQUARE_SIDE
+        y = real_coordinates[0] // SQUARE_SIDE
 
-    if selectedPiece != None and activeTeam == 'black':
-            exec(selectedPiece + '.fillcolor("' + 'black' +'")')
-    
-    if activeTeam == pieces[piece][2]:
-        selectedPiece = piece
-        exec(selectedPiece + '.fillcolor("' + '#CF6679' +'")')
+        return x, y
 
-    if selectedPiece != None:
-        if activeTeam != pieces[piece][2] and pieces[selectedPiece][2] == activeTeam:
-            targetSquare = pieces[piece][1]
-            selectSquare(x=0,y=0,square=targetSquare)
-
-def kingSideCastle(): ## KINGSIDE CASTLE
-    global kingSideRook
-    kingSideRook = 'wr2' if activeTeam == 'white' else 'br2'
-    kingSideDistance = 160 if activeTeam == 'white' else -160
-    x = notation[(pieces[kingSideRook][1])][0] - kingSideDistance
-    y = notation[(pieces[kingSideRook][1])][1]
-    castleTarget = [key for key, value in notation.items() if value == [x,y]]
-    result = [key for key, value in piecePositions.items() if value == str(kingSideRook)]
-    exec(str(kingSideRook) + f'.goto({x},{y})')
-    piecePositions.update({str(result[0]):'empty'})
-    piecePositions.update({str(castleTarget[0]):str(kingSideRook)})
-    pieces[kingSideRook][1] = castleTarget[0]
-    pieces[kingSideRook][4] = True
-    
-
-def queenSideCastle(): ##QUEENSIDE CASTLE
-    global queenSideRook
-    queenSideRook = 'wr1' if activeTeam == 'white' else 'br1'
-    queenSideDistance = -240 if activeTeam == 'white' else 240
-    x = notation[(pieces[queenSideRook][1])][0] - queenSideDistance
-    y = notation[(pieces[queenSideRook][1])][1]
-    castleTarget = [key for key, value in notation.items() if value == [x,y]]
-    result = [key for key, value in piecePositions.items() if value == str(queenSideRook)]
-    exec(str(queenSideRook) + f'.goto({x},{y})')
-    piecePositions.update({str(result[0]):'empty'})
-    piecePositions.update({str(castleTarget[0]):str(queenSideRook)})
-    pieces[queenSideRook][1] = castleTarget[0]
-    pieces[queenSideRook][4] = True
-
-def checkSquare(x,y, square): ## MOVE TO SQUARE LOGIC
-    global selectedSquare
-    global selectedPiece
-    selectedSquare = square
-    
-    if selectedPiece != None and ((piecePositions[selectedSquare] == 'empty') or pieces[piecePositions[selectedSquare]][2] != activeTeam): ##CHECK IF PIECE IS SELECTED AND SELECTED SQUARE IS EMPTY
-        ##PAWN LOGIC
-        if piecePositions[selectedSquare] == 'empty':
-            if pieces[selectedPiece][0] == 'pawn' and pieces[selectedPiece][2] == activeTeam:
-
-                if enPassantDict[selectedSquare] == True:
-                    if (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + 80 \
-                        or notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] - 80) and \
-                    notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] + 80:
-                        return True
-                    else:
-                        return False
-
-                checkCoord = [(notation[(pieces[selectedPiece][1])][0]), (notation[(pieces[selectedPiece][1])][1] + 160)]
-                notationResult = [key for key, value in notation.items() if value == checkCoord]
-                notationResult = str(notationResult)[2:-2]
-                if pieces[selectedPiece][4] == False:
-                    if (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] + 80 or notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] + 160))\
-                        and piecePositions[notationResult][0] != 'empty':
-                        return True
-                    else: 
-                        return False    
-                else:
-                    if notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] + 80):
-                        return True
-                    else: 
-                        return False
+# Common piece logic:
+class Piece(ABC, pygame.sprite.Sprite):
+    def __init__(self, color: Color, notation: str, short_name: str, king: pygame.sprite.Sprite):
+        super().__init__()
+        image: pygame.Surface = pygame.image.load(f"pieces/{color.name.lower()}/{short_name}.png")
         
-        if piecePositions[selectedSquare] != 'empty':   
-            if pieces[piecePositions[selectedSquare]][2] != activeTeam:
-                if pieces[selectedPiece][0] == 'pawn':
-                    if (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + 80 or notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] - 80) and \
-                    notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] + 80:
-                        return True
-                    else:
-                        return
+        self.image: pygame.Surface = pygame.transform.smoothscale(image, (PIECE_SIZE, PIECE_SIZE))
+        self.rect: pygame.Rect = self.image.get_rect()
+        
+        self.color = color
+        self.position: tuple[int, int] | None = None
+        self.real_position: tuple[int, int] | None = None
+        self.first_move: int = None
+        self.king = king
 
-                
-        ##KNIGHT LOGIC
-        if pieces[selectedPiece][0] == 'knight':
-            if (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + 80 and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] +160)) \
-            or (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + 160 and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] +80))\
-            or (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + 160 and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] -80))\
-            or (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + 80 and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] -160))\
-            or (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] -80 and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] -160))\
-            or (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] -160 and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] -80))\
-            or (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] -160 and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] +80))\
-            or (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] -80 and (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] +160)):
+        self.move_to(CoordinatesHelper.notation_to_board(notation))
+    
+    def move_to(self, coordinates: tuple[int, int], check_legality=True) -> bool:
+        if self.position and check_legality:
+            is_legal, killed = self.is_legal_move(coordinates)
+            if not is_legal: return False
+            if not self.first_move: self.first_move = move
+        elif not self.position:
+            self.position = coordinates
+            board[self.position[0]][self.position[1]] = None
+            board[self.position[0]][self.position[1]] = self
+            self.real_position = self.rect.center
+            self.rect.center = CoordinatesHelper.board_to_real(coordinates)
+            return True
+        else:
+            killed = None
+        
+        virtual_board = board
+        virtual_board[self.position[0]][self.position[1]] = None
+        virtual_board[coordinates[0]][coordinates[1]] = self
+
+        tmp = self.position
+        self.position = coordinates
+        
+        if ChessHelper.is_king_checked(self.king, virtual_board):
+            self.position = tmp
+            return False
+
+        if killed: killed.kill()
+        board[self.position[0]][self.position[1]] = None
+        board[self.position[0]][self.position[1]] = self
+        self.real_position = self.rect.center
+        self.rect.center = CoordinatesHelper.board_to_real(coordinates)
+
+        return True
+    
+    def get_info_for_checking(self, coordinates: tuple[int, int]) -> tuple[int, int, int, int, None | pygame.sprite.Sprite, bool, int, int]:
+        new_row, new_column = coordinates
+        cur_row, cur_column = self.position
+        
+        new_place = board[new_row][new_column]
+        row_diff = new_row - cur_row
+        col_diff = new_column - cur_column
+
+        return new_row, new_column, cur_row, cur_column, new_place, row_diff, col_diff
+    @abstractmethod
+    def is_legal_move(self, coordinates: tuple[int, int]) -> tuple[bool, pygame.sprite.Sprite | None]:
+        raise NotImplementedError()
+    
+    def __repr__(self):
+        return self.__class__.__name__ + " at " + CoordinatesHelper.board_to_notation(self.position)
+
+class Pawn(Piece):
+    def __init__(self, color, notation, short_name, king, pieces: pygame.sprite.Group):
+        super().__init__(color, notation, short_name, king)
+        self._dir = -1 if color is Color.WHITE else 1  # dir = direction
+        self._pieces = pieces
+    
+    def move_to(self, coordinates):
+        result = super().move_to(coordinates)
+        if self.position[0] in {0, 7}:
+            queen = Queen(self.color, CoordinatesHelper.board_to_notation(self.position), "Q")
+            self._pieces.add(queen)
+            board[self.position[0]][self.position[1]] = queen
+            self.kill()
+        return result
+
+    def is_legal_move(self, coordinates: tuple[int, int]) -> tuple[bool, pygame.sprite.Sprite | None]:
+        _, new_column, cur_row, _, new_place, row_diff, col_diff = self.get_info_for_checking(coordinates)
+
+        # Normal move
+        if not new_place and col_diff == 0:
+            if row_diff == 1 * self._dir:
+                return True, None
+            if row_diff == 2 * self._dir and not self.first_move:
+                return True, None
+        
+        # Eating
+        if abs(col_diff) == 1 and row_diff == 1 * self._dir:
+            # Normal eating
+            if new_place and new_place.color != self.color:
+                return True, new_place
+            # En passant
+            possible = board[cur_row][new_column]
+            if cur_row in {3, 4} and isinstance(possible, Pawn) and possible.color != self.color and possible.first_move == move - 1:
+                return True, possible
+        return False, None
+
+class Knight(Piece):
+    def is_legal_move(self, coordinates: tuple[int, int]) -> tuple[bool, pygame.sprite.Sprite | None]:
+        new_place, row_diff, col_diff = self.get_info_for_checking(coordinates)[-3:]
+        if {abs(row_diff), abs(col_diff)} == {1, 2} and (new_place is None or new_place.color != self.color):
+            return True, new_place
+        return False, None
+
+class Rook(Piece):
+    def is_legal_move(self, coordinates: tuple[int, int]) -> tuple[bool, pygame.sprite.Sprite | None]:
+        new_row, new_column, cur_row, cur_column, new_place, row_diff, col_diff = self.get_info_for_checking(coordinates)
+        if new_place is not None and new_place.color == self.color: return False, None
+
+        if row_diff == 0 and col_diff != 0:
+            direction = (0, -1) if new_column < cur_column else (0, 1)
+        elif row_diff != 0 and col_diff == 0:
+            direction = (-1, 0) if new_row < cur_row else (1, 0)
+        else: return False, None
+
+        if ChessHelper.check_way(self.position, direction, abs(row_diff + col_diff) - 1): return True, new_place
+        return False, None
+
+class Bishop(Piece):
+    def is_legal_move(self, coordinates: tuple[int, int]) -> tuple[bool, pygame.sprite.Sprite | None]:
+        new_row, new_column, cur_row, cur_column, new_place, row_diff, col_diff = self.get_info_for_checking(coordinates)
+        if new_place is not None and new_place.color == self.color: return False, None
+
+        if row_diff == col_diff and row_diff != 0:
+            direction = (-1, -1) if new_column < cur_column and new_row < cur_row else (1, 1)
+        elif abs(row_diff) == abs(col_diff):
+            direction = (1, -1) if new_column < cur_column else (-1, 1)
+        else: return False, None
+
+        if ChessHelper.check_way(self.position, direction, abs(row_diff) - 1): return True, new_place
+        return False, None
+
+class Queen(Piece):
+    def is_legal_move(self, coordinates: tuple[int, int]) -> tuple[bool, pygame.sprite.Sprite | None]:
+        new_row, new_column, cur_row, cur_column, new_place, row_diff, col_diff = self.get_info_for_checking(coordinates)
+        if new_place is not None and new_place.color == self.color: return False, None
+
+        if row_diff == col_diff and row_diff != 0:
+            direction = (-1, -1) if new_column < cur_column and new_row < cur_row else (1, 1)
+        elif abs(row_diff) == abs(col_diff):
+            direction = (1, -1) if new_column < cur_column else (-1, 1)
+        elif row_diff == 0 and col_diff != 0:
+            direction = (0, -1) if new_column < cur_column else (0, 1)
+        elif row_diff != 0 and col_diff == 0:
+            direction = (-1, 0) if new_row < cur_row else (1, 0)
+        else: return False, None
+
+        iterations = abs(row_diff) - 1 if abs(row_diff) == abs(col_diff) else abs(row_diff + col_diff) - 1
+        if ChessHelper.check_way(self.position, direction, iterations): return True, new_place
+        return False, None
+
+class King(Piece):
+    def __init__(self, color, notation, short_name):
+        self._castled = False
+        self._castled_rook_position: tuple[Rook | None, tuple[int, int] | None] = (None, None)
+        super().__init__(color, notation, short_name, self)
+
+    def move_to(self, coordinates):
+        result = super().move_to(coordinates)
+        if self._castled == False and self._castled_rook_position[0] is not None:
+            self._castled = True
+            rook, position = self._castled_rook_position
+            rook.move_to(position, check_legality=False)
+        return result
+
+    def is_legal_move(self, coordinates: tuple[int, int]) -> tuple[bool, pygame.sprite.Sprite | None]:
+        _, new_column, _, _, new_place, row_diff, col_diff = self.get_info_for_checking(coordinates)
+        if new_place is not None and new_place.color == self.color: return False, None
+        
+        # Normal move
+        if abs(max((row_diff, col_diff), key=abs)) == 1:
+            return True, new_place
+        
+        # Castling
+        is_castling = self.first_move == None and abs(col_diff) == 2 \
+                      and ChessHelper.check_way((0, col_diff // 2), 2 + (col_diff < 0)) \
+                      and isinstance(possible_rook := board[self.position[0]][0 if col_diff < 0 else 7], Rook) \
+                      and possible_rook.first_move == None
+        
+        if is_castling:
+            rook_pos = (self.position[0], new_column + (1 if col_diff < 0 else -1))
+            self._castled_rook_position = (possible_rook, rook_pos)
+            return True, new_place
+        return False, None
+
+class ChessHelper:
+    @staticmethod
+    def check_way(pos: tuple[int, int], direction: tuple[int, int], iterations: int=7, additional_info: bool=False, board: list[list[None]]=board) -> bool | tuple[bool, Piece]:
+        try:
+            counter = 0
+            for _ in range(iterations):
+                pos = (pos[0] + direction[0], pos[1] + direction[1])
+                if -1 in pos: break
+                counter += 1
+                if board[pos[0]][pos[1]]: return (False, board[pos[0]][pos[1]], counter) if additional_info else False
+        except IndexError: pass
+        return (True, None, counter) if additional_info else True
+    
+    @staticmethod
+    def _knights_around_point(position: tuple[int, int], color: Color, board: list[list[None | Piece]]=board) -> bool:
+        y, x = position
+        possible_knight_positions = set()
+
+        if y < 6 and x < 7: possible_knight_positions.add((y + 2, x + 1))
+        if y < 6 and x > 0: possible_knight_positions.add((y + 2, x - 1))
+        if y > 1 and x < 7: possible_knight_positions.add((y - 2, x + 1))
+        if y > 1 and x > 0: possible_knight_positions.add((y - 2, x - 1))
+        if x < 6 and y < 7: possible_knight_positions.add((y + 1, x + 2))
+        if x > 1 and y < 7: possible_knight_positions.add((y + 1, x - 2))
+        if x < 6 and y > 0: possible_knight_positions.add((y - 1, x + 2))
+        if x > 1 and y > 0: possible_knight_positions.add((y - 1, x - 2))
+        
+        for y, x in possible_knight_positions:
+            cell = board[y][x]
+            if isinstance(cell, Knight) and cell.color is color:
                 return True
-            else: 
-                return False
-                
-        ##BISHOP LOGIC
-        if pieces[selectedPiece][0] == 'bishop':
-            blocked = False
-            if abs(notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0]) == abs(notation[selectedSquare][1] - notation[(pieces[selectedPiece][1])][1]):
-                dist = notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0]
-                trav = abs(dist) / 80 - 1
+        return False
 
-                if notation[selectedSquare][0] > notation[(pieces[selectedPiece][1])][0]:
-                    xVar = 1
-                else:
-                    xVar = -1
-                
-                if (notation[selectedSquare][1] > notation[(pieces[selectedPiece][1])][1]):
-                    yVar = 1 
-                else:
-                    yVar = -1
-
-                for i in range(int(trav)):
-                    xPos = i * xVar * 80 + (80 * xVar) + notation[(pieces[selectedPiece][1])][0]
-                    yPos = i * yVar * 80 + (80 * yVar) + notation[(pieces[selectedPiece][1])][1]
-                    checkCoord = [xPos, yPos]
-                    notationResult = [key for key, value in notation.items() if value == checkCoord]
-                    if piecePositions[str(notationResult[0])]!='empty':
-                        blocked = True
-                
-                if not blocked:                
-                    return True
-                else: 
-                    return False
-                
-        ##ROOK LOGIC
-        if pieces[selectedPiece][0] == 'rook':
-            blocked = False
-            if (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] and notation[selectedSquare][1] != notation[(pieces[selectedPiece][1])][1]) \
-                or (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] and notation[selectedSquare][0] != notation[(pieces[selectedPiece][1])][0]):
-                dist = (notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0]) + (notation[selectedSquare][1] - notation[(pieces[selectedPiece][1])][1])
-                trav = abs(dist) / 80 - 1
-                
-                if notation[selectedSquare][0] > notation[(pieces[selectedPiece][1])][0]:
-                    xVar = 1
-                else:
-                    xVar = -1
-                
-                if (notation[selectedSquare][1] > notation[(pieces[selectedPiece][1])][1]):
-                    yVar = 1 
-                else:
-                    yVar = -1
-
-                for i in range(int(trav)):
-                    xPos = (i * xVar * 80) + (80 * xVar) + notation[(pieces[selectedPiece][1])][0] if notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0] != 0 else notation[(pieces[selectedPiece][1])][0]
-                    yPos = (i * yVar * 80) + (80 * yVar) + notation[(pieces[selectedPiece][1])][1] if notation[selectedSquare][1] - notation[(pieces[selectedPiece][1])][1] != 0 else notation[(pieces[selectedPiece][1])][1]
-                    checkCoord = [xPos, yPos]
-                    notationResult = [key for key, value in notation.items() if value == checkCoord]
-                    if piecePositions[str(notationResult[0])]!='empty':
-                        blocked = True
-                
-                if not blocked:                
-                    return True
-                else: 
-                    return False
+    @staticmethod
+    def is_king_checked(king: King, board: list[list[None | Piece]]=board):
+        position = king.position
+        enemy_color = Color.BLACK if king.color is Color.WHITE else Color.WHITE
         
-        ##QUEEN LOGIC
-        if pieces[selectedPiece][0] == 'queen':
-            if abs(notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0]) == abs(notation[selectedSquare][1] - notation[(pieces[selectedPiece][1])][1]):
-                blocked = False
-                dist = notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0]
-                trav = abs(dist) / 80 - 1
-
-                if notation[selectedSquare][0] > notation[(pieces[selectedPiece][1])][0]:
-                    xVar = 1
-                else:
-                    xVar = -1
-                
-                if (notation[selectedSquare][1] > notation[(pieces[selectedPiece][1])][1]):
-                    yVar = 1 
-                else:
-                    yVar = -1
-
-                for i in range(int(trav)):
-                    xPos = i * xVar * 80 + (80 * xVar) + notation[(pieces[selectedPiece][1])][0]
-                    yPos = i * yVar * 80 + (80 * yVar) + notation[(pieces[selectedPiece][1])][1]
-                    checkCoord = [xPos, yPos]
-                    notationResult = [key for key, value in notation.items() if value == checkCoord]
-                    if piecePositions[str(notationResult[0])]!='empty':
-                        blocked = True
-                    
-                
-                
-                if not blocked:                
-                    return True
-                else: 
-                    return False
-                
-            if (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] and notation[selectedSquare][1] != notation[(pieces[selectedPiece][1])][1]) \
-                or (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1] and notation[selectedSquare][0] != notation[(pieces[selectedPiece][1])][0]):
-                blocked = False
-                dist = (notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0]) + (notation[selectedSquare][1] - notation[(pieces[selectedPiece][1])][1])
-                trav = abs(dist) / 80 - 1
-                
-                if notation[selectedSquare][0] > notation[(pieces[selectedPiece][1])][0]:
-                    xVar = 1
-                else:
-                    xVar = -1
-                
-                if (notation[selectedSquare][1] > notation[(pieces[selectedPiece][1])][1]):
-                    yVar = 1 
-                else:
-                    yVar = -1
-
-                for i in range(int(trav)):
-                    xPos = (i * xVar * 80) + (80 * xVar) + notation[(pieces[selectedPiece][1])][0] if notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0] != 0 else notation[(pieces[selectedPiece][1])][0]
-                    yPos = (i * yVar * 80) + (80 * yVar) + notation[(pieces[selectedPiece][1])][1] if notation[selectedSquare][1] - notation[(pieces[selectedPiece][1])][1] != 0 else notation[(pieces[selectedPiece][1])][1]
-                    checkCoord = [xPos, yPos]
-                    notationResult = [key for key, value in notation.items() if value == checkCoord]
-                    if piecePositions[str(notationResult[0])]!='empty':
-                        blocked = True
-                
-                if not blocked:                
-                    return True
-                else: 
-                    return False
-                
-        ##KING LOGIC
-        if pieces[selectedPiece][0] == 'king':
-            global kingSideRook
-            kingSideRook = 'wr2' if activeTeam == 'white' else 'br2'
-            kingSideCheck = 'f1' if activeTeam == 'white' else 'f8'
-            kingSideDistance = 160 if activeTeam =='white' else -160
-            queenSideRook = 'wr1' if activeTeam == 'white' else 'br1'
-            queenSideCheck = ['c1','d1'] if activeTeam == 'white' else ['c8','d8']
-            queenSideDistance = -160 if activeTeam =='white' else 160
-            
-            if (abs(notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0]) == 80 or 0) and abs(notation[selectedSquare][1] - notation[(pieces[selectedPiece][1])][1]) == 80 or 0\
-            or (notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0]) and (abs(notation[selectedSquare][1] - notation[(pieces[selectedPiece][1])][1]) == 80) \
-            or (notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1]) and (abs(notation[selectedSquare][0] - notation[(pieces[selectedPiece][1])][0]) == 80):
-                if kingCheckCheck(selectedSquare):
-                        return False
+        for direction in {(-1, -1), (1, 1), (1, -1), (-1, 1)}:
+            is_free, piece, checked_cells = ChessHelper.check_way(position, direction, additional_info=True, board=board)
+            if not is_free and piece.color == enemy_color \
+            and (isinstance(piece, (Bishop, Queen)) or isinstance(piece, Pawn) \
+            and checked_cells == 1 and direction in {(1, 1), (-1, 1)}):
                 return True
-            
-            elif ((pieces[selectedPiece][4] == False and pieces[kingSideRook][4] == False) and notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + kingSideDistance)\
-                and notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1]\
-                and piecePositions[kingSideCheck] == 'empty':
+        
+        for direction in {(0, 1), (0, -1), (1, 0), (-1, 0)}:
+            is_free, piece, _ = ChessHelper.check_way(position, direction, additional_info=True, board=board)
+            if not is_free and piece.color == enemy_color and isinstance(piece, (Rook, Queen)):
                 return True
-            
-            elif ((pieces[selectedPiece][4] == False and pieces[queenSideRook][4] == False) and notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + queenSideDistance)\
-                and notation[selectedSquare][1] == notation[(pieces[selectedPiece][1])][1]\
-                and (piecePositions[queenSideCheck[0]] == 'empty' and piecePositions[queenSideCheck[1]] == 'empty'):
-                return True
-            
-            else: 
-                return False   
-            
-for p in list(pieces.keys()):
-    selectedPiece = p
-    for n in notation:
-        legal = checkSquare(0, 0, n)
-        if legal == None:
-            legal = False
-        pieces[selectedPiece][5][n] = legal
+        return ChessHelper._knights_around_point(position, enemy_color, board)
 
-selectedPiece = None
+def draw_board(surface: pygame.surface.Surface) -> list[pygame.Rect]:
+    for i in range(8):
+        for j in range(8):
+            cur_color = j % 2 != i % 2
+            x, y = SQUARE_SIDE * j, SQUARE_SIDE * i
+    
+            square = pygame.Rect(x, y, SQUARE_SIDE, SQUARE_SIDE)
+            pygame.draw.rect(surface, COLORS[cur_color], square, 0)
 
-def selectSquare(x,y, square):
-    global selectedPiece
-    global selectedSquare
-    global triggerKingSideCastle
-    xVar = 160 if activeTeam == 'white' else -160
-    selectedSquare = square
-    if selectedPiece != None:
-        if pieces[selectedPiece][5][selectedSquare]:
-            exec(selectedPiece + '.fillcolor("' + 'white' +'")') if activeTeam == 'white' else  exec(selectedPiece + '.fillcolor("' + 'black' +'")')
-            exec(selectedPiece + '.goto(' + 'notation["'+selectedSquare+'"])')
-            if piecePositions[selectedSquare] != 'empty':
-                if pieces[piecePositions[selectedSquare]][2] != activeTeam:
-                    global capturedPiece
-                    capturedPiece = [piecePositions[selectedSquare]]
-                    del pieces[str(capturedPiece)[2:-2]]
-                    turtle.tracer(0,0)
-                    exec(str(capturedPiece)[2:-2] + '.setpos(1000,1000)')
-                    turtle.tracer(1,0)
-                    capturedPiece = None
+def recalculate_to_flip(piece: pygame.sprite.Sprite) -> tuple[int, int]:
+    x, y = piece.rect.center
+    return (WINDOW_SIDE - x, WINDOW_SIDE - y) if not flipped else piece.real_position
 
-            if pieces[selectedPiece][0] == 'king' and notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] + xVar:
-                kingSideCastle()
-
-            if pieces[selectedPiece][0] == 'king' and notation[selectedSquare][0] == notation[(pieces[selectedPiece][1])][0] - xVar:
-                queenSideCastle()
-
-            if pieces[selectedPiece][0] == 'pawn' and piecePositions[selectedSquare] == 'empty' and enPassantDict[selectedSquare] == True:
-                dest_file = selectedSquare[0]
-                dest_rank = int(selectedSquare[1])
-                captured_rank = dest_rank - 1 if activeTeam == 'white' else dest_rank + 1
-                captured_sq = dest_file + str(captured_rank)
-
-                captured_id = piecePositions[captured_sq]
-                del pieces[captured_id]
-                turtle.tracer(0,0)
-                exec(captured_id + '.setpos(1000,1000)')
-                turtle.tracer(1,0)
-                piecePositions[captured_sq] = 'empty'
-            
-            for k in enPassantDict:
-                enPassantDict[k] = False
-
-            if pieces[selectedPiece][0] == 'pawn' and notation[selectedSquare][1] == \
-               notation[(pieces[selectedPiece][1])][1] + 160:
-                dest_file = selectedSquare[0]
-                dest_rank = int(selectedSquare[1])
-                passed_rank = dest_rank - 1 if activeTeam == 'white' else dest_rank + 1
-                enPassantSquare = dest_file + str(passed_rank)
-                enPassantDict[enPassantSquare] = True
+def flip_board(pieces: pygame.sprite.Group):  # Note: flipping is just a visual effect, it doesn't affect anything else
+    global flipped
+    for piece in pieces:
+        piece.rect.center = recalculate_to_flip(piece)
+    flipped = not flipped
 
 
-            result = [key for key, value in piecePositions.items() if value == str(selectedPiece)]
-            piecePositions.update({str(result[0]):'empty'})
-            piecePositions.update({str(selectedSquare):str(selectedPiece)})
-            pieces[selectedPiece][1] = selectedSquare
-            pieces[selectedPiece][4] = True
-            
-            flip()
+Tk().wm_withdraw()
+need_to_flip_board = messagebox.askyesno(message="Flip the board after the moves?")
 
-        for p in list(pieces.keys()):
-            selectedPiece = p
-            for n in notation:
-                legal = checkSquare(0, 0, n)
-                if legal == None:
-                    legal = False
-                pieces[selectedPiece][5][n] = legal
-        
-        whiteKingSquare = pieces['wk'][1]
+pygame.init()
+screen = pygame.display.set_mode((WINDOW_SIDE, WINDOW_SIDE))
+pygame.display.set_caption("Chess")
+background = pygame.surface.Surface((WINDOW_SIDE, WINDOW_SIDE))
 
-        whiteInCheck = False
-        prevTeam = globals()['activeTeam']
 
-        for p, value in pieces.items():
-            if value[2] == 'black':
-                globals()['activeTeam'] = 'black'
-                selectedPiece = p
-                if checkSquare(0, 0, whiteKingSquare) == True:
-                    whiteInCheck = True
-                    break
+# --- SETUP BOARD ---
+draw_board(background)
+pieces_group = pygame.sprite.Group()
 
-        globals()['activeTeam'] = prevTeam
-        selectedPiece = None
-        prevTeam = globals()['activeTeam']
-        
-        blackInCheck = False
-        blackKingSquare = pieces['bk'][1]
+wk = King(color=Color.WHITE, notation="e1", short_name="K")
+bk = King(color=Color.BLACK, notation="e8", short_name="K")
+wq = Queen(color=Color.WHITE, notation="d1", king=wk, short_name="Q")
+bq = Queen(color=Color.BLACK, notation="d8", king=bk, short_name="Q")
+pieces_group.add(wq, bq, wk, bk)
 
-        for p, value in pieces.items():
-            if value[2] == 'white':
-                globals()['activeTeam'] = 'white'
-                selectedPiece = p
-                if checkSquare(0, 0, blackKingSquare) == True:
-                    blackInCheck = True
-                    break
+for i in "abcdefgh":
+    pawn = Pawn(color=Color.WHITE, notation=i + "2", short_name="P", king=wk, pieces=pieces_group)
+    pieces_group.add(pawn)
+    pawn = Pawn(color=Color.BLACK, notation=i + "7", short_name="P", king=bk, pieces=pieces_group)
+    pieces_group.add(pawn)
+pygame.display.set_icon(pawn.image)
 
-        globals()['activeTeam'] = prevTeam
-        selectedPiece = None
+wn1 = Knight(color=Color.WHITE, notation="b1", king=wk, short_name="N")
+wn2 = Knight(color=Color.WHITE, notation="g1", king=wk, short_name="N")
+bn1 = Knight(color=Color.BLACK, notation="b8", king=bk, short_name="N")
+bn2 = Knight(color=Color.BLACK, notation="g8", king=bk, short_name="N")
+pieces_group.add(wn1, wn2, bn1, bn2)
 
-        if blackInCheck:
-            exec ('bk.fillcolor("#CF6679")')
-            time.sleep(.25)
-            exec ('bk.fillcolor("black")')
-            time.sleep(.25)
-            exec ('bk.fillcolor("#CF6679")')
-            time.sleep(.25)
-            exec ('bk.fillcolor("black")')
-            time.sleep(.25)
-            exec ('bk.fillcolor("#CF6679")')
-            time.sleep(.25)
-            exec ('bk.fillcolor("black")')
-            time.sleep(.25)
-            exec ('bk.fillcolor("#CF6679")')
-            print('black in check')
+wr1 = Rook(color=Color.WHITE, notation="a1", king=wk, short_name="R")
+wr2 = Rook(color=Color.WHITE, notation="h1", king=wk, short_name="R")
+br1 = Rook(color=Color.BLACK, notation="a8", king=bk, short_name="R")
+br2 = Rook(color=Color.BLACK, notation="h8", king=bk, short_name="R")
+pieces_group.add(wr1, wr2, br1, br2)
 
-        if whiteInCheck:
-            exec ('wk.fillcolor("#CF6679")')
-            time.sleep(.25)
-            exec ('wk.fillcolor("white")')
-            time.sleep(.25)
-            exec ('wk.fillcolor("#CF6679")')
-            time.sleep(.25)
-            exec ('wk.fillcolor("white")')
-            time.sleep(.25)
-            exec ('wk.fillcolor("#CF6679")')
-            time.sleep(.25)
-            exec ('wk.fillcolor("white")')
-            time.sleep(.25)
-            exec ('wk.fillcolor("#CF6679")')
-            print('white in check')
-        
+wb1 = Bishop(color=Color.WHITE, notation="c1", king=wk, short_name="B")
+wb2 = Bishop(color=Color.WHITE, notation="f1", king=wk, short_name="B")
+bb1 = Bishop(color=Color.BLACK, notation="c8", king=bk, short_name="B")
+bb2 = Bishop(color=Color.BLACK, notation="f8", king=bk, short_name="B")
+pieces_group.add(wb1, wb2, bb1, bb2)
 
-turtle.done()
+selected_piece = None
+turn = Color.WHITE
+
+
+# --- GAME ---
+while True:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if e.type == pygame.MOUSEBUTTONDOWN:
+            coordinates = CoordinatesHelper.real_to_board(e.pos if not flipped else (WINDOW_SIDE - e.pos[0], WINDOW_SIDE - e.pos[1]))
+            cell: Pawn = board[coordinates[0]][coordinates[1]]
+            if selected_piece and selected_piece.move_to(coordinates):
+                selected_piece = None
+                turn = Color.BLACK if turn is Color.WHITE else Color.WHITE
+                move += 1
+                print(ChessHelper.is_king_checked(wk))
+                if need_to_flip_board: flip_board(pieces_group)
+            elif cell and cell.color == turn:
+                selected_piece = cell
+    
+    screen.blit(background, (0, 0))
+    pieces_group.draw(screen)
+    pieces_group.update()
+    pygame.display.flip()
